@@ -20,6 +20,7 @@ const Readings: React.FC = () => {
     meterId: '',
     reading: '',
   });
+  const [photo, setPhoto] = useState<File | null>(null);
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -51,13 +52,21 @@ const Readings: React.FC = () => {
     setFormLoading(true);
     setSuccessMessage(null);
 
+    if (!photo) {
+      setFormError('A meter photo is required');
+      setFormLoading(false);
+      return;
+    }
+
     try {
       const response = await readingsAPI.create({
         meterId: formData.meterId,
         reading: parseFloat(formData.reading),
+        photo,
       });
 
       setFormData({ meterId: '', reading: '' });
+      setPhoto(null);
       
       if (response.bill) {
         setSuccessMessage(
@@ -69,7 +78,8 @@ const Readings: React.FC = () => {
       
       await loadData();
     } catch (error: any) {
-      setFormError(error.response?.data?.error || 'Error recording reading');
+      const apiMsg = error?.response?.data?.error || error?.response?.data?.errors?.[0]?.msg;
+      setFormError(apiMsg || 'Error recording reading');
     } finally {
       setFormLoading(false);
     }
@@ -80,6 +90,7 @@ const Readings: React.FC = () => {
     setFormError('');
     setSuccessMessage(null);
     setFormData({ meterId: '', reading: '' });
+    setPhoto(null);
   };
 
   const meterOptions = meters.map(meter => ({
@@ -95,6 +106,14 @@ const Readings: React.FC = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const apiBase = (process.env.REACT_APP_API_URL || 'http://localhost:3001/api');
+  const filesBase = apiBase.replace(/\/api$/, '');
+  const getPhotoUrl = (photoPath?: string) => {
+    if (!photoPath) return '';
+    if (/^https?:\/\//i.test(photoPath)) return photoPath;
+    return `${filesBase}/${photoPath}`;
   };
 
   return (
@@ -184,6 +203,7 @@ const Readings: React.FC = () => {
                     <TableHead>Current Reading</TableHead>
                     <TableHead>Previous Reading</TableHead>
                     <TableHead>Units Consumed</TableHead>
+                    <TableHead>Photo</TableHead>
                     <TableHead>Technician</TableHead>
                     <TableHead>Date</TableHead>
                   </TableRow>
@@ -199,6 +219,20 @@ const Readings: React.FC = () => {
                         <span className="font-medium text-blue-600">
                           {reading.unitsConsumed?.toLocaleString() || '0'} kWh
                         </span>
+                      </TableCell>
+                      <TableCell>
+                        {reading.photoPath ? (
+                          <a href={getPhotoUrl(reading.photoPath)} target="_blank" rel="noreferrer">
+                            <img
+                              src={getPhotoUrl(reading.photoPath)}
+                              alt="Meter reading"
+                              className="h-12 w-12 object-cover rounded border"
+                              loading="lazy"
+                            />
+                          </a>
+                        ) : (
+                          <span className="text-gray-400">No photo</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div>
@@ -250,6 +284,18 @@ const Readings: React.FC = () => {
                 placeholder="Enter current meter reading"
                 required
               />
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Reading Photo</label>
+                <input
+                  type="file"
+                  accept="image/*;capture=camera"
+                  onChange={(e) => setPhoto(e.target.files && e.target.files[0] ? e.target.files[0] : null)}
+                  required
+                  className="mt-1 block w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                <p className="text-xs text-gray-500 mt-1">Upload or take a clear photo of the meter.</p>
+              </div>
 
               <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                 <p className="text-sm text-blue-600">

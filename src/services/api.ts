@@ -24,7 +24,7 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('auth-token');
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    (config.headers as any).Authorization = `Bearer ${token}`;
   }
   return config;
 });
@@ -135,11 +135,14 @@ export const readingsAPI = {
     return response.data;
   },
   
-  create: async (data: {
-    meterId: string;
-    reading: number;
-  }): Promise<{ message: string; reading: MeterReading; bill?: any }> => {
-    const response = await api.post('/readings', data);
+  create: async (data: { meterId: string; reading: number; photo: File }): Promise<{ message: string; reading: MeterReading; bill?: any }> => {
+    const form = new FormData();
+    form.append('meterId', data.meterId);
+    form.append('reading', data.reading.toString());
+    form.append('photo', data.photo);
+    const response = await api.post('/readings', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
   },
 };
@@ -177,6 +180,18 @@ export const billsAPI = {
   
   updateOverdue: async (): Promise<{ message: string; updatedCount: number }> => {
     const response = await api.post('/bills/update-overdue');
+    return response.data;
+  },
+};
+
+// Settings API
+export const settingsAPI = {
+  getKwhRate: async (): Promise<{ key: string; value: string }> => {
+    const response = await api.get('/settings/kwh-rate');
+    return response.data;
+  },
+  updateKwhRate: async (value: number, password: string): Promise<{ message: string; key: string; value: string }> => {
+    const response = await api.put('/settings/kwh-rate', { value, password });
     return response.data;
   },
 };

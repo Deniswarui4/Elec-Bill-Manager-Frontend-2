@@ -51,6 +51,7 @@ export interface MeterReading {
   unitsConsumed?: number;
   readingDate: string;
   createdAt: string;
+  photoPath: string;
   meter: {
     meterNumber: string;
     plotNumber: string;
