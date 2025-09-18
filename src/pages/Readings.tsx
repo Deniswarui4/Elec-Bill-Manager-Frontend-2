@@ -404,11 +404,11 @@ const Readings: React.FC = () => {
                 <p className="text-xs text-gray-500 mt-1">Upload or take a clear photo of the meter. Max 5MB.</p>
 
                 {photoPreviewUrl && (
-                  <div className="mt-3 flex items-center gap-3">
+                  <div className="mt-3 flex items-center gap-2">
                     <img
                       src={photoPreviewUrl}
                       alt="Preview"
-                      className="h-20 w-20 object-cover rounded border"
+                      className="h-12 w-12 object-cover rounded border"
                     />
                     <Button
                       type="button"
