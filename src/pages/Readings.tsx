@@ -6,7 +6,7 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import Modal from '../components/ui/Modal';
-import { readingsAPI, metersAPI } from '../services/api';
+import { readingsAPI, metersAPI, settingsAPI } from '../services/api';
 import { MeterReading, Meter } from '../types';
 import { useAuth } from '../context/AuthContext';
 
@@ -24,9 +24,23 @@ const Readings: React.FC = () => {
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<string | undefined>(undefined);
+  const [kwhRate, setKwhRate] = useState<string>('');
+  const [filterMeterId, setFilterMeterId] = useState<string>('');
+  const [filterStartDate, setFilterStartDate] = useState<string>('');
+  const [filterEndDate, setFilterEndDate] = useState<string>('');
 
   useEffect(() => {
     loadData();
+    // Load KWh rate for context
+    (async () => {
+      try {
+        const r = await settingsAPI.getKwhRate();
+        setKwhRate(r.value);
+      } catch {}
+    })();
   }, []);
 
   const loadData = async () => {
@@ -67,6 +81,10 @@ const Readings: React.FC = () => {
 
       setFormData({ meterId: '', reading: '' });
       setPhoto(null);
+      if (photoPreviewUrl) {
+        URL.revokeObjectURL(photoPreviewUrl);
+        setPhotoPreviewUrl(null);
+      }
       
       if (response.bill) {
         setSuccessMessage(
@@ -91,6 +109,10 @@ const Readings: React.FC = () => {
     setSuccessMessage(null);
     setFormData({ meterId: '', reading: '' });
     setPhoto(null);
+    if (photoPreviewUrl) {
+      URL.revokeObjectURL(photoPreviewUrl);
+      setPhotoPreviewUrl(null);
+    }
   };
 
   const meterOptions = meters.map(meter => ({
@@ -107,6 +129,42 @@ const Readings: React.FC = () => {
       minute: '2-digit'
     });
   };
+  const filteredReadings = readings.filter((r) => {
+    if (filterMeterId && r.meter && (formData.meterId || true)) {
+      // r.meterNumber not available; cannot map id → meter easily from r; since backend includes meter info only, compare by meterNumber via selected meter option
+    }
+    const meterPass = filterMeterId ? (r.meter && filterMeterId === meters.find(m=>m.meterNumber===r.meter.meterNumber)?.id) : true;
+    const startPass = filterStartDate ? new Date(r.readingDate) >= new Date(filterStartDate) : true;
+    const endPass = filterEndDate ? new Date(r.readingDate) <= new Date(filterEndDate + 'T23:59:59') : true;
+    return meterPass && startPass && endPass;
+  });
+
+  const exportCsv = () => {
+    const rows = [
+      ['Meter Number','Plot','Reading','Previous','Units','Technician','Phone','Date','Photo URL'],
+      ...filteredReadings.map(r => [
+        r.meter.meterNumber,
+        r.meter.plotNumber,
+        r.reading.toString(),
+        r.previousReading?.toString() || '',
+        (r.unitsConsumed || 0).toString(),
+        r.technician.name || 'Technician',
+        r.technician.phoneNumber,
+        new Date(r.readingDate).toISOString(),
+        getPhotoUrl(r.photoPath)
+      ])
+    ];
+    const csv = rows.map(cols => cols.map(c => `"${(c || '').toString().replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `readings-${Date.now()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
 
   const apiBase = (process.env.REACT_APP_API_URL || 'http://localhost:3001/api');
   const filesBase = apiBase.replace(/\/api$/, '');
@@ -116,7 +174,31 @@ const Readings: React.FC = () => {
     return `${filesBase}/${photoPath}`;
   };
 
+  const handlePhotoSelect: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    if (file && file.size > 5 * 1024 * 1024) {
+      setFormError('Image is larger than 5MB. Please choose a smaller photo.');
+      e.target.value = '';
+      return;
+    }
+    setPhoto(file);
+    if (photoPreviewUrl) {
+      URL.revokeObjectURL(photoPreviewUrl);
+      setPhotoPreviewUrl(null);
+    }
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPhotoPreviewUrl(url);
+    }
+  };
+
+  const openLightbox = (src: string) => {
+    setLightboxSrc(src);
+    setLightboxOpen(true);
+  };
+
   return (
+    <>
     <SidebarLayout>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
@@ -187,7 +269,25 @@ const Readings: React.FC = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Recent Readings</CardTitle>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle>Recent Readings</CardTitle>
+              <div className="flex flex-wrap gap-2">
+                <select
+                  value={filterMeterId}
+                  onChange={(e)=>setFilterMeterId(e.target.value)}
+                  className="input h-9"
+                >
+                  <option value="">All meters</option>
+                  {meters.map(m => (
+                    <option key={m.id} value={m.id}>{m.meterNumber} - {m.plotNumber}</option>
+                  ))}
+                </select>
+                <input type="date" value={filterStartDate} onChange={(e)=>setFilterStartDate(e.target.value)} className="input h-9" />
+                <input type="date" value={filterEndDate} onChange={(e)=>setFilterEndDate(e.target.value)} className="input h-9" />
+                <Button variant="outline" onClick={()=>{setFilterMeterId('');setFilterStartDate('');setFilterEndDate('');}}>Clear</Button>
+                <Button onClick={exportCsv}>Export CSV</Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -209,7 +309,7 @@ const Readings: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {readings.map((reading) => (
+                  {filteredReadings.map((reading) => (
                     <TableRow key={reading.id}>
                       <TableCell className="font-medium">{reading.meter.meterNumber}</TableCell>
                       <TableCell>{reading.meter.plotNumber}</TableCell>
@@ -222,14 +322,14 @@ const Readings: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         {reading.photoPath ? (
-                          <a href={getPhotoUrl(reading.photoPath)} target="_blank" rel="noreferrer">
+                          <button type="button" onClick={() => openLightbox(getPhotoUrl(reading.photoPath))} className="focus:outline-none">
                             <img
                               src={getPhotoUrl(reading.photoPath)}
                               alt="Meter reading"
-                              className="h-12 w-12 object-cover rounded border"
+                              className="h-12 w-12 object-cover rounded border hover:opacity-90"
                               loading="lazy"
                             />
-                          </a>
+                          </button>
                         ) : (
                           <span className="text-gray-400">No photo</span>
                         )}
@@ -260,6 +360,9 @@ const Readings: React.FC = () => {
               <div className="bg-green-50 border border-green-200 rounded-md p-4">
                 <h3 className="text-lg font-medium text-green-800 mb-2">Reading Recorded!</h3>
                 <p className="text-sm text-green-600">{successMessage}</p>
+                {kwhRate && (
+                  <p className="text-xs text-green-700 mt-2">Using rate: KES {parseFloat(kwhRate).toFixed(2)} per KWh</p>
+                )}
               </div>
               <div className="flex justify-end">
                 <Button onClick={closeModal}>Close</Button>
@@ -285,16 +388,41 @@ const Readings: React.FC = () => {
                 required
               />
 
+              {kwhRate && (
+                <p className="text-xs text-gray-500">Current rate: <span className="font-medium">KES {parseFloat(kwhRate).toFixed(2)}/KWh</span></p>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700">Reading Photo</label>
                 <input
                   type="file"
                   accept="image/*;capture=camera"
-                  onChange={(e) => setPhoto(e.target.files && e.target.files[0] ? e.target.files[0] : null)}
+                  onChange={handlePhotoSelect}
                   required
                   className="mt-1 block w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
-                <p className="text-xs text-gray-500 mt-1">Upload or take a clear photo of the meter.</p>
+                <p className="text-xs text-gray-500 mt-1">Upload or take a clear photo of the meter. Max 5MB.</p>
+
+                {photoPreviewUrl && (
+                  <div className="mt-3 flex items-center gap-3">
+                    <img
+                      src={photoPreviewUrl}
+                      alt="Preview"
+                      className="h-20 w-20 object-cover rounded border"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setPhoto(null);
+                        URL.revokeObjectURL(photoPreviewUrl);
+                        setPhotoPreviewUrl(null);
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                )}
               </div>
 
               <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
@@ -323,6 +451,18 @@ const Readings: React.FC = () => {
         </Modal>
       </div>
     </SidebarLayout>
+    {/* Lightbox Modal */}
+    <Modal isOpen={lightboxOpen} onClose={() => { setLightboxOpen(false); setLightboxSrc(undefined); }} title="Photo" size="lg">
+      {lightboxSrc && (
+        <div className="flex flex-col gap-3">
+          <img src={lightboxSrc} alt="Reading" className="w-full max-h-[75vh] object-contain" />
+          <div className="flex justify-end">
+            <a href={lightboxSrc} target="_blank" rel="noreferrer" className="text-blue-600 text-sm">Open original</a>
+          </div>
+        </div>
+      )}
+    </Modal>
+    </>
   );
 };
 
