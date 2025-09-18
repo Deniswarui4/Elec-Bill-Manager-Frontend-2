@@ -249,9 +249,9 @@ const Users: React.FC = () => {
                           >
                             Reset Password
                           </Button>
-                          <Button 
-                            variant="destructive" 
+                          <Button
                             size="sm"
+                            className="bg-red-600 hover:bg-red-700 text-white"
                             onClick={() => handleDeleteUser(user)}
                           >
                             Delete

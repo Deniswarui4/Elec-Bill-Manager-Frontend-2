@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { MapPin, Map, Navigation } from 'lucide-react';
 import SidebarLayout from '../components/SidebarLayout';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/Table';
@@ -286,13 +287,101 @@ const Meters: React.FC = () => {
               placeholder="e.g., Building A, Floor 2, Apartment 203"
             />
 
-            <Input
-              label="GPS Coordinates (Optional)"
-              type="text"
-              value={formData.coordinates}
-              onChange={(e) => setFormData({ ...formData, coordinates: e.target.value })}
-              placeholder="e.g., -1.2921, 36.8219"
-            />
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">GPS Coordinates (Optional)</label>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      value={formData.coordinates}
+                      onChange={(e) => setFormData({ ...formData, coordinates: e.target.value })}
+                      placeholder="e.g., -1.2921, 36.8219"
+                    />
+                  </div>
+                </div>
+                <div className="flex space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    title="Get current location"
+                    className="h-10 w-10 hover:bg-blue-50 hover:text-blue-600"
+                    onClick={() => {
+                      if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(
+                          (position) => {
+                            const { latitude, longitude } = position.coords;
+                            setFormData(prev => ({
+                              ...prev,
+                              coordinates: `${latitude}, ${longitude}`
+                            }));
+                          },
+                          (error) => {
+                            alert('Error getting location: ' + error.message);
+                          }
+                        );
+                      } else {
+                        alert('Geolocation is not supported by your browser');
+                      }
+                    }}
+                  >
+                    <Navigation className="h-4 w-4" />
+                  </Button>
+                  {formData.coordinates && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      title="View in Google Maps"
+                      className="h-10 w-10 hover:bg-green-50 hover:text-green-600"
+                      onClick={() => {
+                        try {
+                          // Handle different coordinate formats
+                          const coords = formData.coordinates
+                            .split(',')
+                            .map(coord => coord.trim())
+                            .filter(Boolean);
+                          
+                          if (coords.length >= 2) {
+                            const [lat, lng] = coords;
+                            // Validate latitude and longitude
+                            const latNum = parseFloat(lat);
+                            const lngNum = parseFloat(lng);
+                            
+                            if (isNaN(latNum) || isNaN(lngNum)) {
+                              throw new Error('Coordinates must be numbers');
+                            }
+                            
+                            if (latNum < -90 || latNum > 90) {
+                              throw new Error('Latitude must be between -90 and 90');
+                            }
+                            
+                            if (lngNum < -180 || lngNum > 180) {
+                              throw new Error('Longitude must be between -180 and 180');
+                            }
+                            
+                            // Open in Google Maps with proper URL encoding
+                            window.open(`https://www.google.com/maps?q=${latNum},${lngNum}`, '_blank', 'noopener,noreferrer');
+                          } else {
+                            throw new Error('Please provide both latitude and longitude separated by a comma');
+                          }
+                        } catch (error: unknown) {
+                          const errorMessage = error instanceof Error ? error.message : 'Invalid coordinates format. Please use: latitude, longitude';
+                          alert(`Error: ${errorMessage}`);
+                        }
+                      }}
+                    >
+                      <Map className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">
+                Format: latitude, longitude (e.g., -1.2921, 36.8219)
+              </p>
+            </div>
 
             {formError && (
               <div className="bg-red-50 border border-red-200 rounded-md p-3">
@@ -323,20 +412,22 @@ const Meters: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Meter Number</label>
-                  <p className="text-lg font-semibold">{viewMeterData.meterNumber}</p>
+                  <p className="text-lg font-semibold">{viewMeterData.meterNumber || 'N/A'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Plot Number</label>
-                  <p className="text-lg font-semibold">{viewMeterData.plotNumber}</p>
+                  <p className="text-lg font-semibold">{viewMeterData.plotNumber || 'N/A'}</p>
                 </div>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Landlord</label>
                 <div className="bg-gray-50 rounded-md p-3">
-                  <p className="font-medium">{viewMeterData.landlord.name || 'No Name'}</p>
-                  <p className="text-sm text-gray-600">{viewMeterData.landlord.phoneNumber}</p>
-                  <p className="text-xs text-gray-500 capitalize">{viewMeterData.landlord.role.toLowerCase()}</p>
+                  <p className="font-medium">{viewMeterData.landlord?.name || 'No Name'}</p>
+                  <p className="text-sm text-gray-600">{viewMeterData.landlord?.phoneNumber || 'N/A'}</p>
+                  <p className="text-xs text-gray-500 capitalize">
+                    {viewMeterData.landlord?.role ? viewMeterData.landlord.role.toLowerCase() : 'N/A'}
+                  </p>
                 </div>
               </div>
 
@@ -347,7 +438,12 @@ const Meters: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">GPS Coordinates</label>
-                  <p>{viewMeterData.coordinates || 'Not specified'}</p>
+                  <div className="flex items-center">
+                    <p className="mr-2">{viewMeterData.coordinates || 'Not specified'}</p>
+                    {viewMeterData.coordinates && (
+                      <ViewInMapsButton coordinates={viewMeterData.coordinates} />
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -412,13 +508,101 @@ const Meters: React.FC = () => {
               placeholder="e.g., Building A, Floor 2, Apartment 203"
             />
 
-            <Input
-              label="GPS Coordinates"
-              type="text"
-              value={editFormData.coordinates}
-              onChange={(e) => setEditFormData({ ...editFormData, coordinates: e.target.value })}
-              placeholder="e.g., -1.2921, 36.8219"
-            />
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">GPS Coordinates (Optional)</label>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      value={editFormData.coordinates}
+                      onChange={(e) => setEditFormData({ ...editFormData, coordinates: e.target.value })}
+                      placeholder="e.g., -1.2921, 36.8219"
+                    />
+                  </div>
+                </div>
+                <div className="flex space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    title="Get current location"
+                    className="h-10 w-10 hover:bg-blue-50 hover:text-blue-600"
+                    onClick={() => {
+                      if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(
+                          (position) => {
+                            const { latitude, longitude } = position.coords;
+                            setEditFormData(prev => ({
+                              ...prev,
+                              coordinates: `${latitude}, ${longitude}`
+                            }));
+                          },
+                          (error) => {
+                            alert('Error getting location: ' + error.message);
+                          }
+                        );
+                      } else {
+                        alert('Geolocation is not supported by your browser');
+                      }
+                    }}
+                  >
+                    <Navigation className="h-4 w-4" />
+                  </Button>
+                  {editFormData.coordinates && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      title="View in Google Maps"
+                      className="h-10 w-10 hover:bg-green-50 hover:text-green-600"
+                      onClick={() => {
+                        try {
+                          // Handle different coordinate formats
+                          const coords = editFormData.coordinates
+                            .split(',')
+                            .map(coord => coord.trim())
+                            .filter(Boolean);
+                          
+                          if (coords.length >= 2) {
+                            const [lat, lng] = coords;
+                            // Validate latitude and longitude
+                            const latNum = parseFloat(lat);
+                            const lngNum = parseFloat(lng);
+                            
+                            if (isNaN(latNum) || isNaN(lngNum)) {
+                              throw new Error('Coordinates must be numbers');
+                            }
+                            
+                            if (latNum < -90 || latNum > 90) {
+                              throw new Error('Latitude must be between -90 and 90');
+                            }
+                            
+                            if (lngNum < -180 || lngNum > 180) {
+                              throw new Error('Longitude must be between -180 and 180');
+                            }
+                            
+                            // Open in Google Maps with proper URL encoding
+                            window.open(`https://www.google.com/maps?q=${latNum},${lngNum}`, '_blank', 'noopener,noreferrer');
+                          } else {
+                            throw new Error('Please provide both latitude and longitude separated by a comma');
+                          }
+                        } catch (error: unknown) {
+                          const errorMessage = error instanceof Error ? error.message : 'Invalid coordinates format. Please use: latitude, longitude';
+                          alert(`Error: ${errorMessage}`);
+                        }
+                      }}
+                    >
+                      <Map className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">
+                Format: latitude, longitude (e.g., -1.2921, 36.8219)
+              </p>
+            </div>
 
             <div>
               <label className="flex items-center space-x-2">
@@ -444,6 +628,44 @@ const Meters: React.FC = () => {
         </Modal>
       </div>
     </SidebarLayout>
+  );
+};
+
+// ViewInMapsButton Component
+interface ViewInMapsButtonProps {
+  coordinates: string;
+}
+
+const ViewInMapsButton: React.FC<ViewInMapsButtonProps> = ({ coordinates }) => {
+  if (!coordinates || typeof coordinates !== 'string' || coordinates.trim() === '') {
+    return null;
+  }
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const [lat, lng] = coordinates.split(',').map(coord => coord.trim());
+      if (lat && lng) {
+        window.open(
+          `https://www.google.com/maps?q=${lat},${lng}`,
+          '_blank',
+          'noopener,noreferrer'
+        );
+      }
+    } catch (error) {
+      console.error('Error opening maps:', error);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className="text-blue-600 hover:text-blue-800"
+      title="View in Google Maps"
+    >
+      <Map className="h-4 w-4 inline" />
+    </button>
   );
 };
 
