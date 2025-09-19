@@ -315,13 +315,13 @@ const Readings: React.FC = () => {
                       <TableCell>
                         {reading.photoPath ? (
                           <button type="button" onClick={() => openLightbox(getPhotoUrl(reading.photoPath))} className="focus:outline-none">
-                            <img
-                              src={getPhotoUrl(reading.photoPath)}
-                              alt="Meter reading"
-                              className="h-12 w-12 object-cover rounded border hover:opacity-90"
-                              loading="lazy"
-                            />
-                          </button>
+                                                          <img
+                                                          src={getPhotoUrl(reading.photoPath)}
+                                                          alt="Meter reading"
+                                                          className="h-12 w-12 object-cover rounded border hover:opacity-90"
+                                                          loading="lazy"
+                                                          crossOrigin="anonymous"
+                                                        />                          </button>
                         ) : (
                           <span className="text-gray-400">No photo</span>
                         )}
@@ -397,6 +397,7 @@ const Readings: React.FC = () => {
                       src={photoPreviewUrl}
                       alt="Preview"
                       className="h-12 w-12 object-cover rounded border"
+                      crossOrigin="anonymous"
                     />
                     <Button
                       type="button"
