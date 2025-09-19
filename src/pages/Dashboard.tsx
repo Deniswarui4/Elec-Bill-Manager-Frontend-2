@@ -3,8 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import SidebarLayout from '../components/SidebarLayout';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
-import Button from '../components/ui/Button';
-import { metersAPI, billsAPI, authAPI, readingsAPI, settingsAPI } from '../services/api';
+import { metersAPI, billsAPI, authAPI, readingsAPI } from '../services/api';
 import { BillingSummary } from '../types';
 
 const Dashboard: React.FC = () => {
@@ -17,55 +16,12 @@ const Dashboard: React.FC = () => {
     totalReadings: 0,
     billingSummary: null as BillingSummary | null,
   });
-  const [kwhRate, setKwhRate] = useState<string>('');
-  const [kwhSaving, setKwhSaving] = useState<boolean>(false);
-  const [kwhError, setKwhError] = useState<string>('');
-  const [kwhSuccess, setKwhSuccess] = useState<string>('');
-  const [confirmPassword, setConfirmPassword] = useState<string>('');
 
   useEffect(() => {
     loadDashboardData();
-    if (user?.role === 'ADMIN') {
-      loadKwhRate();
-    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.role]);
 
-  const loadKwhRate = async () => {
-    try {
-      const res = await settingsAPI.getKwhRate();
-      setKwhRate(res.value);
-    } catch (e: any) {
-      setKwhRate('25.0');
-    }
-  };
-
-  const saveKwhRate = async () => {
-    try {
-      setKwhError('');
-      setKwhSuccess('');
-      setKwhSaving(true);
-      const valueNum = parseFloat(kwhRate);
-      if (Number.isNaN(valueNum) || valueNum < 0) {
-        setKwhError('Enter a valid positive number');
-        setKwhSaving(false);
-        return;
-      }
-      if (!confirmPassword) {
-        setKwhError('Password required');
-        setKwhSaving(false);
-        return;
-      }
-      const res = await settingsAPI.updateKwhRate(valueNum, confirmPassword);
-      setKwhRate(res.value);
-      setKwhSuccess('Updated');
-      setConfirmPassword('');
-    } catch (e: any) {
-      setKwhError(e?.response?.data?.error || e?.response?.data?.errors?.[0]?.msg || 'Failed to update rate');
-    } finally {
-      setKwhSaving(false);
-    }
-  };
 
   const loadDashboardData = async () => {
     try {
@@ -333,53 +289,15 @@ const Dashboard: React.FC = () => {
         {/* System Info */}
         <Card>
           <CardHeader>
-            <CardTitle>System Settings</CardTitle>
+            <CardTitle>System Information</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {user?.role === 'ADMIN' ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-                  <div className="md:col-span-1">
-                    <label className="block text-sm font-medium text-gray-700">Default KWh Rate (KES)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={kwhRate}
-                      onChange={(e) => setKwhRate(e.target.value)}
-                      className="input mt-1"
-                      autoComplete="off"
-                      inputMode="decimal"
-                    />
-                  </div>
-                  <div className="md:col-span-1">
-                    <label className="block text-sm font-medium text-gray-700">Confirm Password</label>
-                    <input
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="input mt-1"
-                      placeholder="Enter your admin password"
-                      name="admin-confirm-password"
-                      autoComplete="new-password"
-                      autoCapitalize="off"
-                      spellCheck={false}
-                    />
-                  </div>
-                  <div className="md:col-span-1">
-                    <Button onClick={saveKwhRate} disabled={kwhSaving}>
-                      {kwhSaving ? 'Saving...' : 'Save'}
-                    </Button>
-                  </div>
-                  {kwhError && <p className="text-sm text-red-600 md:col-span-3">{kwhError}</p>}
-                  {kwhSuccess && <p className="text-sm text-green-600 md:col-span-3">{kwhSuccess}</p>}
-                </div>
-              ) : (
-                <div className="space-y-2 text-sm">
-                  <p><strong>Default KWh Rate:</strong> KES {kwhRate || '25.00'}</p>
-                  <p><strong>Your Role:</strong> {user?.role}</p>
-                  <p><strong>Account:</strong> {user?.phoneNumber}</p>
-                  {user?.name && <p><strong>Name:</strong> {user.name}</p>}
-                </div>
+            <div className="space-y-2 text-sm">
+              <p><strong>Your Role:</strong> {user?.role}</p>
+              <p><strong>Account:</strong> {user?.phoneNumber}</p>
+              {user?.name && <p><strong>Name:</strong> {user.name}</p>}
+              {user?.role === 'ADMIN' && (
+                <p><strong>Note:</strong> KWh rates are now set individually per meter when creating/editing meters.</p>
               )}
             </div>
           </CardContent>

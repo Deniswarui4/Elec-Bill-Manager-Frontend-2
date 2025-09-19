@@ -11,7 +11,7 @@ import {
   PaginatedResponse
 } from '../types';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3002/api';
 
 console.log('API Base URL:', API_BASE_URL);
 
@@ -99,6 +99,7 @@ export const metersAPI = {
     meterNumber: string;
     plotNumber: string;
     landlordId: string;
+    kwhRate: number;
     coordinates?: string;
     location?: string;
   }): Promise<{ message: string; meter: Meter }> => {
@@ -110,6 +111,7 @@ export const metersAPI = {
     plotNumber?: string;
     coordinates?: string;
     location?: string;
+    kwhRate?: number;
     isActive?: boolean;
   }): Promise<{ message: string; meter: Meter }> => {
     const response = await api.put(`/meters/${id}`, data);
@@ -170,8 +172,11 @@ export const billsAPI = {
     return response.data;
   },
   
-  markAsPaid: async (id: string): Promise<{ message: string; bill: Bill }> => {
-    const response = await api.patch(`/bills/${id}/pay`);
+  markAsPaid: async (id: string, paymentData: {
+    paymentMethod: 'BANK_TRANSACTION' | 'MPESA' | 'CASH';
+    paymentReference: string;
+  }): Promise<{ message: string; bill: Bill }> => {
+    const response = await api.patch(`/bills/${id}/pay`, paymentData);
     return response.data;
   },
   
@@ -186,16 +191,5 @@ export const billsAPI = {
   },
 };
 
-// Settings API
-export const settingsAPI = {
-  getKwhRate: async (): Promise<{ key: string; value: string }> => {
-    const response = await api.get('/settings/kwh-rate');
-    return response.data;
-  },
-  updateKwhRate: async (value: number, password: string): Promise<{ message: string; key: string; value: string }> => {
-    const response = await api.put('/settings/kwh-rate', { value, password });
-    return response.data;
-  },
-};
 
 export default api;

@@ -28,6 +28,7 @@ export interface Meter {
   id: string;
   meterNumber: string;
   plotNumber: string;
+  kwhRate: number;
   coordinates?: string;
   location?: string;
   isActive: boolean;
@@ -76,6 +77,8 @@ export interface Bill {
   dueDate: string;
   status: 'PENDING' | 'PAID' | 'OVERDUE';
   paidDate?: string;
+  paymentMethod?: 'BANK_TRANSACTION' | 'MPESA' | 'CASH';
+  paymentReference?: string;
   createdAt: string;
   meter: {
     meterNumber: string;

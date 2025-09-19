@@ -19,6 +19,7 @@ const Meters: React.FC = () => {
     meterNumber: '',
     plotNumber: '',
     landlordId: '',
+    kwhRate: '',
     coordinates: '',
     location: '',
   });
@@ -30,6 +31,7 @@ const Meters: React.FC = () => {
     plotNumber: '',
     location: '',
     coordinates: '',
+    kwhRate: '',
     isActive: true,
   });
   const [editLoading, setEditLoading] = useState(false);
@@ -67,6 +69,7 @@ const Meters: React.FC = () => {
         meterNumber: formData.meterNumber,
         plotNumber: formData.plotNumber,
         landlordId: formData.landlordId,
+        kwhRate: parseFloat(formData.kwhRate),
         coordinates: formData.coordinates || undefined,
         location: formData.location || undefined,
       });
@@ -75,6 +78,7 @@ const Meters: React.FC = () => {
         meterNumber: '',
         plotNumber: '',
         landlordId: '',
+        kwhRate: '',
         coordinates: '',
         location: '',
       });
@@ -94,6 +98,7 @@ const Meters: React.FC = () => {
       meterNumber: '',
       plotNumber: '',
       landlordId: '',
+      kwhRate: '',
       coordinates: '',
       location: '',
     });
@@ -110,6 +115,7 @@ const Meters: React.FC = () => {
       plotNumber: meter.plotNumber,
       location: meter.location || '',
       coordinates: meter.coordinates || '',
+      kwhRate: meter.kwhRate?.toString() || '',
       isActive: meter.isActive,
     });
     setEditModal(true);
@@ -125,6 +131,7 @@ const Meters: React.FC = () => {
         plotNumber: editFormData.plotNumber,
         location: editFormData.location || undefined,
         coordinates: editFormData.coordinates || undefined,
+        kwhRate: parseFloat(editFormData.kwhRate),
         isActive: editFormData.isActive,
       });
       setEditModal(false);
@@ -144,6 +151,7 @@ const Meters: React.FC = () => {
       plotNumber: '',
       location: '',
       coordinates: '',
+      kwhRate: '',
       isActive: true,
     });
   };
@@ -187,6 +195,7 @@ const Meters: React.FC = () => {
                     <TableHead>Meter Number</TableHead>
                     <TableHead>Plot Number</TableHead>
                     <TableHead>Landlord</TableHead>
+                    <TableHead>KWh Rate</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Readings</TableHead>
@@ -203,6 +212,12 @@ const Meters: React.FC = () => {
                           <div className="font-medium">{meter.landlord.name || 'No Name'}</div>
                           <div className="text-sm text-gray-500">{meter.landlord.phoneNumber}</div>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-medium text-green-600">
+                          KES {meter.kwhRate ? meter.kwhRate.toFixed(2) : '0.00'}
+                        </span>
+                        <div className="text-xs text-gray-500">per kWh</div>
                       </TableCell>
                       <TableCell>{meter.location || '-'}</TableCell>
                       <TableCell>
@@ -276,6 +291,17 @@ const Meters: React.FC = () => {
               value={formData.landlordId}
               onChange={(e) => setFormData({ ...formData, landlordId: e.target.value })}
               options={landlordOptions}
+              required
+            />
+
+            <Input
+              label="KWh Rate (KES)"
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={formData.kwhRate}
+              onChange={(e) => setFormData({ ...formData, kwhRate: e.target.value })}
+              placeholder="e.g., 25.50"
               required
             />
 
@@ -431,7 +457,14 @@ const Meters: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">KWh Rate</label>
+                  <p className="text-lg font-semibold text-green-600">
+                    KES {viewMeterData.kwhRate ? viewMeterData.kwhRate.toFixed(2) : '0.00'}
+                  </p>
+                  <p className="text-xs text-gray-500">per kWh</p>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
                   <p>{viewMeterData.location || 'Not specified'}</p>
@@ -491,14 +524,27 @@ const Meters: React.FC = () => {
               </p>
             </div>
 
-            <Input
-              label="Plot Number"
-              type="text"
-              value={editFormData.plotNumber}
-              onChange={(e) => setEditFormData({ ...editFormData, plotNumber: e.target.value })}
-              placeholder="e.g., PLOT-567"
-              required
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Plot Number"
+                type="text"
+                value={editFormData.plotNumber}
+                onChange={(e) => setEditFormData({ ...editFormData, plotNumber: e.target.value })}
+                placeholder="e.g., PLOT-567"
+                required
+              />
+
+              <Input
+                label="KWh Rate (KES)"
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={editFormData.kwhRate}
+                onChange={(e) => setEditFormData({ ...editFormData, kwhRate: e.target.value })}
+                placeholder="e.g., 25.50"
+                required
+              />
+            </div>
 
             <Input
               label="Location"

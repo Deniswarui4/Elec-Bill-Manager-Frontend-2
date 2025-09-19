@@ -6,7 +6,7 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import Modal from '../components/ui/Modal';
-import { readingsAPI, metersAPI, settingsAPI } from '../services/api';
+import { readingsAPI, metersAPI } from '../services/api';
 import { MeterReading, Meter } from '../types';
 import { useAuth } from '../context/AuthContext';
 
@@ -27,20 +27,12 @@ const Readings: React.FC = () => {
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | undefined>(undefined);
-  const [kwhRate, setKwhRate] = useState<string>('');
   const [filterMeterId, setFilterMeterId] = useState<string>('');
   const [filterStartDate, setFilterStartDate] = useState<string>('');
   const [filterEndDate, setFilterEndDate] = useState<string>('');
 
   useEffect(() => {
     loadData();
-    // Load KWh rate for context
-    (async () => {
-      try {
-        const r = await settingsAPI.getKwhRate();
-        setKwhRate(r.value);
-      } catch {}
-    })();
   }, []);
 
   const loadData = async () => {
@@ -360,9 +352,7 @@ const Readings: React.FC = () => {
               <div className="bg-green-50 border border-green-200 rounded-md p-4">
                 <h3 className="text-lg font-medium text-green-800 mb-2">Reading Recorded!</h3>
                 <p className="text-sm text-green-600">{successMessage}</p>
-                {kwhRate && (
-                  <p className="text-xs text-green-700 mt-2">Using rate: KES {parseFloat(kwhRate).toFixed(2)} per KWh</p>
-                )}
+                
               </div>
               <div className="flex justify-end">
                 <Button onClick={closeModal}>Close</Button>
@@ -388,9 +378,7 @@ const Readings: React.FC = () => {
                 required
               />
 
-              {kwhRate && (
-                <p className="text-xs text-gray-500">Current rate: <span className="font-medium">KES {parseFloat(kwhRate).toFixed(2)}/KWh</span></p>
-              )}
+              
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">Reading Photo</label>

@@ -5,6 +5,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import Button from '../components/ui/Button';
 import Select from '../components/ui/Select';
 import Modal from '../components/ui/Modal';
+import PaymentModal from '../components/PaymentModal';
 import { billsAPI } from '../services/api';
 import { Bill, BillingSummary } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -18,6 +19,8 @@ const Bills: React.FC = () => {
   const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
   const [viewModal, setViewModal] = useState(false);
   const [viewBillData, setViewBillData] = useState<Bill | null>(null);
+  const [paymentModal, setPaymentModal] = useState(false);
+  const [paymentBillData, setPaymentBillData] = useState<Bill | null>(null);
   const [updateOverdueLoading, setUpdateOverdueLoading] = useState(false);
 
   useEffect(() => {
@@ -42,17 +45,34 @@ const Bills: React.FC = () => {
     }
   };
 
-  const handleMarkAsPaid = async (billId: string) => {
+  const handleMarkAsPaid = (bill: Bill) => {
+    setPaymentBillData(bill);
+    setPaymentModal(true);
+  };
+
+  const handleConfirmPayment = async (paymentData: {
+    paymentMethod: 'BANK_TRANSACTION' | 'MPESA' | 'CASH';
+    paymentReference: string;
+  }) => {
+    if (!paymentBillData) return;
+
     try {
-      setPaymentLoading(billId);
-      await billsAPI.markAsPaid(billId);
+      setPaymentLoading(paymentBillData.id);
+      await billsAPI.markAsPaid(paymentBillData.id, paymentData);
       await loadData(); // Reload data to refresh the table and summary
+      setPaymentModal(false);
+      setPaymentBillData(null);
     } catch (error: any) {
       console.error('Error marking bill as paid:', error);
       alert(error.response?.data?.error || 'Error marking bill as paid');
     } finally {
       setPaymentLoading(null);
     }
+  };
+
+  const closePaymentModal = () => {
+    setPaymentModal(false);
+    setPaymentBillData(null);
   };
 
   const handleViewBill = (bill: Bill) => {
@@ -93,7 +113,9 @@ const Bills: React.FC = () => {
       'Bill Date': new Date(bill.billDate || bill.createdAt).toLocaleDateString(),
       'Due Date': new Date(bill.dueDate).toLocaleDateString(),
       'Status': bill.status,
-      'Paid Date': bill.paidDate ? new Date(bill.paidDate).toLocaleDateString() : 'N/A'
+      'Paid Date': bill.paidDate ? new Date(bill.paidDate).toLocaleDateString() : 'N/A',
+      'Payment Method': bill.paymentMethod || 'N/A',
+      'Payment Reference': bill.paymentReference || 'N/A'
     }));
     
     // Convert to CSV string
@@ -177,7 +199,14 @@ const Bills: React.FC = () => {
           </tr>
         </table>
         
-        ${bill.status === 'PAID' && bill.paidDate ? `<p><strong>Paid on:</strong> ${formatDate(bill.paidDate)}</p>` : ''}
+        ${bill.status === 'PAID' && bill.paidDate ? `
+          <div style="margin-top: 30px; background-color: #f0f8f0; padding: 15px; border-left: 4px solid #28a745;">
+            <h3 style="color: #28a745; margin: 0 0 10px 0;">Payment Information</h3>
+            <p><strong>Paid on:</strong> ${formatDate(bill.paidDate)}</p>
+            ${bill.paymentMethod ? `<p><strong>Payment Method:</strong> ${bill.paymentMethod === 'MPESA' ? 'M-Pesa' : bill.paymentMethod === 'BANK_TRANSACTION' ? 'Bank Transaction' : bill.paymentMethod === 'CASH' ? 'Cash Payment' : bill.paymentMethod}</p>` : ''}
+            ${bill.paymentReference ? `<p><strong>Payment Reference:</strong> ${bill.paymentReference}</p>` : ''}
+          </div>
+        ` : ''}
         
         <p style="margin-top: 40px; font-size: 12px; color: #666;">
           Generated on ${new Date().toLocaleDateString()} by EBS System
@@ -384,7 +413,14 @@ const Bills: React.FC = () => {
                         </span>
                         {bill.status === 'PAID' && bill.paidDate && (
                           <div className="text-xs text-gray-500 mt-1">
-                            Paid: {formatDate(bill.paidDate)}
+                            <div>Paid: {formatDate(bill.paidDate)}</div>
+                            {bill.paymentMethod && (
+                              <div className="text-xs text-green-600">
+                                {bill.paymentMethod === 'MPESA' ? 'M-Pesa' : 
+                                 bill.paymentMethod === 'BANK_TRANSACTION' ? 'Bank' :
+                                 bill.paymentMethod === 'CASH' ? 'Cash' : bill.paymentMethod}
+                              </div>
+                            )}
                           </div>
                         )}
                       </TableCell>
@@ -394,10 +430,10 @@ const Bills: React.FC = () => {
                             <Button
                               variant="primary"
                               size="sm"
-                              onClick={() => handleMarkAsPaid(bill.id)}
+                              onClick={() => handleMarkAsPaid(bill)}
                               disabled={paymentLoading === bill.id}
                             >
-                              {paymentLoading === bill.id ? 'Marking...' : 'Mark Paid'}
+                              {paymentLoading === bill.id ? 'Processing...' : 'Mark Paid'}
                             </Button>
                           )}
                           <Button 
@@ -547,6 +583,33 @@ const Bills: React.FC = () => {
                 )}
               </div>
 
+              {/* Payment Information */}
+              {viewBillData.status === 'PAID' && (viewBillData.paymentMethod || viewBillData.paymentReference) && (
+                <div className="border rounded-lg p-4 bg-green-50">
+                  <h3 className="text-lg font-medium text-gray-900 mb-3 text-green-800">Payment Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {viewBillData.paymentMethod && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Payment Method</label>
+                        <p className="font-medium text-green-700">
+                          {viewBillData.paymentMethod === 'MPESA' ? 'M-Pesa' : 
+                           viewBillData.paymentMethod === 'BANK_TRANSACTION' ? 'Bank Transaction' :
+                           viewBillData.paymentMethod === 'CASH' ? 'Cash Payment' : viewBillData.paymentMethod}
+                        </p>
+                      </div>
+                    )}
+                    {viewBillData.paymentReference && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Payment Reference</label>
+                        <p className="font-mono text-sm bg-white px-2 py-1 rounded border">
+                          {viewBillData.paymentReference}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div className="flex justify-between items-center pt-4 border-t">
                 <div className="flex space-x-3">
@@ -554,12 +617,12 @@ const Bills: React.FC = () => {
                     <Button
                       variant="primary"
                       onClick={() => {
-                        handleMarkAsPaid(viewBillData.id);
+                        handleMarkAsPaid(viewBillData);
                         closeViewModal();
                       }}
                       disabled={paymentLoading === viewBillData.id}
                     >
-                      {paymentLoading === viewBillData.id ? 'Marking...' : 'Mark as Paid'}
+                      {paymentLoading === viewBillData.id ? 'Processing...' : 'Mark as Paid'}
                     </Button>
                   )}
                   <Button 
@@ -576,6 +639,15 @@ const Bills: React.FC = () => {
             </div>
           )}
         </Modal>
+
+        {/* Payment Modal */}
+        <PaymentModal
+          isOpen={paymentModal}
+          onClose={closePaymentModal}
+          bill={paymentBillData}
+          onConfirm={handleConfirmPayment}
+          loading={paymentLoading === paymentBillData?.id}
+        />
       </div>
     </SidebarLayout>
   );
