@@ -162,6 +162,7 @@ const Readings: React.FC = () => {
   const filesBase = apiBase.replace(/\/api$/, '');
   const getPhotoUrl = (photoPath?: string) => {
     if (!photoPath) return '';
+    if (photoPath.startsWith('data:image')) return photoPath;
     if (/^https?:\/\//i.test(photoPath)) return photoPath;
     return `${filesBase}/${photoPath}`;
   };
